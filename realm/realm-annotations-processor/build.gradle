@@ -10,6 +10,7 @@ targetCompatibility = '1.6'
 dependencies {
     compile group:'com.squareup', name:'javawriter', version:'2.5.0'
     compile "io.realm:realm-annotations:${version}"
+    compile 'org.springframework:spring-core:4.3.4.RELEASE'
     compileOnly "org.projectlombok:lombok:1.16.10"
 
     testCompile files('../realm-library/build/intermediates/bundles/base/release/classes.jar') // Java projects cannot depend on AAR files

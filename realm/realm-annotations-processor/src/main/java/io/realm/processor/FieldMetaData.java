@@ -16,18 +16,23 @@
 
 package io.realm.processor;
 
+import org.springframework.core.GenericTypeResolver;
+
 import java.util.Arrays;
 import java.util.List;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.MirroredTypeException;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Types;
 
+import io.realm.RealmTypeAdapter;
 import io.realm.annotations.Index;
 import io.realm.annotations.PrimaryKey;
 import io.realm.annotations.Required;
+import io.realm.annotations.TypeAdapter;
 import lombok.Getter;
 
 
@@ -41,6 +46,9 @@ public class FieldMetaData {
     private boolean indexed;
     private boolean nullable;
     private boolean primaryKey;
+    private boolean usingTypeAdapter;
+    private Class<? extends RealmTypeAdapter> typeAdapterClass;
+    private TypeMirror realmType;
 
     private final List<TypeMirror> validPrimaryKeyTypes;
 
@@ -59,10 +67,26 @@ public class FieldMetaData {
                 typeUtils.getPrimitiveType(TypeKind.BYTE)
         );
 
+        TypeAdapter typeAdapterAnnotation = variableElement.getAnnotation(TypeAdapter.class);
+        if (typeAdapterAnnotation != null) {
+            usingTypeAdapter = true;
+            try {
+                typeAdapterClass = typeAdapterAnnotation.value();
+                Class<?> realmType = GenericTypeResolver.resolveTypeArguments(typeAdapterClass, RealmTypeAdapter.class)[1];
+                this.realmType = env.getElementUtils().getTypeElement(realmType.getCanonicalName()).asType();
+            } catch (MirroredTypeException mte) {
+                TypeMirror typeAdapterMirror = mte.getTypeMirror();
+
+                //TODO
+            }
+        } else {
+            this.realmType = variableElement.asType();
+        }
+
         if (variableElement.getAnnotation(Index.class) != null) {
             // The field has the @Index annotation. It's only valid for column types:
             // STRING, DATE, INTEGER, BOOLEAN
-            String elementTypeCanonicalName = variableElement.asType().toString();
+            String elementTypeCanonicalName = realmType.toString();
             String columnType = Constants.JAVA_TO_COLUMN_TYPES.get(elementTypeCanonicalName);
             if (columnType != null && (columnType.equals("RealmFieldType.STRING") ||
                     columnType.equals("RealmFieldType.DATE") ||
@@ -108,9 +132,7 @@ public class FieldMetaData {
             // The field has the @PrimaryKey annotation. It is only valid for
             // String, short, int, long and must only be present one time
 
-
-            TypeMirror fieldType = variableElement.asType();
-            if (!isValidPrimaryKeyType(fieldType)) {
+            if (!isValidPrimaryKeyType(realmType)) {
                 throw new InvalidFieldException("\"" + variableElement.getSimpleName().toString() + "\" is not allowed as primary key. See @PrimaryKey for allowed types.");
             }
 
@@ -159,24 +181,18 @@ public class FieldMetaData {
     }
 
     public boolean isString() {
-        if (variableElement == null) {
-            throw new IllegalArgumentException("Argument 'field' cannot be null.");
-        }
-        return Utils.getFieldTypeSimpleName(variableElement).equals("String");
+        return Utils.getFieldTypeSimpleName(realmType).equals("String");
     }
 
     public boolean isByteArray() {
         if (variableElement == null) {
             throw new IllegalArgumentException("Argument 'field' cannot be null.");
         }
-        return Utils.getFieldTypeSimpleName(variableElement).equals("byte[]");
+        return Utils.getFieldTypeSimpleName(realmType).equals("byte[]");
     }
 
     public boolean isPrimitiveType() {
-        if (variableElement == null) {
-            throw new IllegalArgumentException("Argument 'field' cannot be null.");
-        }
-        return variableElement.asType().getKind().isPrimitive();
+        return realmType.getKind().isPrimitive();
     }
 
     public String getGenericTypeQualifiedName() {
@@ -184,7 +200,7 @@ public class FieldMetaData {
     }
 
     public String getFieldTypeSimpleName() {
-        return Utils.getFieldTypeSimpleName(variableElement);
+        return Utils.getFieldTypeSimpleName(realmType);
     }
 
     public String getGenericTypeSimpleName() {
@@ -192,6 +208,6 @@ public class FieldMetaData {
     }
 
     public String getFieldTypeQualifiedName() {
-        return Utils.getFieldTypeQualifiedName(variableElement);
+        return Utils.getFieldTypeQualifiedName(realmType);
     }
 }

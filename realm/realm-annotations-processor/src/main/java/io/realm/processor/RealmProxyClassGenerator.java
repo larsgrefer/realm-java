@@ -1878,7 +1878,7 @@ public class RealmProxyClassGenerator {
                 RealmJsonTypeHelper.emitFillJavaTypeFromStream(
                         interfaceName,
                         metadata,
-                        fieldName,
+                        field,
                         qualifiedFieldType,
                         writer
                 );

@@ -52,7 +52,7 @@ public class Utils {
         if (typeUtils.isAssignable(field.asType(), realmList)) {
             return getProxyClassName(getGenericTypeSimpleName(field));
         } else {
-            return getProxyClassName(getFieldTypeSimpleName(field));
+            return getProxyClassName(getFieldTypeSimpleName(field.asType()));
         }
     }
 
@@ -126,14 +126,14 @@ public class Utils {
     /**
      * @return the qualified type name for a field.
      */
-    public static String getFieldTypeQualifiedName(VariableElement field) {
-        return field.asType().toString();
+    public static String getFieldTypeQualifiedName(TypeMirror field) {
+        return field.toString();
     }
 
     /**
      * @return the simple type name for a field.
      */
-    public static String getFieldTypeSimpleName(VariableElement field) {
+    public static String getFieldTypeSimpleName(TypeMirror field) {
         String fieldTypeQualifiedName = getFieldTypeQualifiedName(field);
         if (!fieldTypeQualifiedName.contains(".")) {
             return fieldTypeQualifiedName;
